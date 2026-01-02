@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-package:
+    name: Build Python package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install uv
+
+      - name: Build wheel and sdist
+        run: uv build
+
+      - name: Upload Python artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/*
+          if-no-files-found: error
+
+  build-binaries:
+    name: Build standalone binaries
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install uv
+          pip install . pyinstaller
+
+      - name: Build executable
+        run: pyinstaller renai.spec
+
+      - name: Package binary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import shutil
+
+          dist_dir = pathlib.Path("dist") / "renai"
+          if not dist_dir.exists():
+              raise SystemExit("dist/renai not found; PyInstaller build failed.")
+
+          artifacts_dir = pathlib.Path("artifacts")
+          artifacts_dir.mkdir(exist_ok=True)
+
+          os_name = "${{ matrix.os }}".replace("-latest", "")
+          archive = artifacts_dir / f"renai-{os_name}.zip"
+          if archive.exists():
+              archive.unlink()
+
+          shutil.make_archive(archive.with_suffix(""), "zip", dist_dir)
+          PY
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: renai-${{ matrix.os }}
+          path: artifacts/*.zip
+          if-no-files-found: error
+
+  release:
+    name: Publish Release
+    needs:
+      - build-package
+      - build-binaries
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true
