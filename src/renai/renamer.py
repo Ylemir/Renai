@@ -2,7 +2,7 @@ import logging
 import re
 from pathlib import Path
 
-from renai.ai_client import generate_name
+from renai.ai_client import ContentFilteredError, generate_name
 from renai.config import load_config
 from renai.image_utils import compress_image, get_mime, image_mimes
 from renai.logger import (
@@ -111,23 +111,37 @@ def process_path(
 
     for i, img in enumerate(files, 1):
         log.debug(f"Processing: {img.name}")
+        size_mb = img.stat().st_size / (1024 * 1024)
         print_process(
-            f"[{i}/{len(files)}] Processing: {img.name} (Size: {img.stat().st_size / (1024 * 1024):.2f} MB)"
+            f"[{i}/{len(files)}] Processing: {img.name} (Size: {size_mb:.2f} MB)"
         )
         try:
             image_bytes = compress_image(img, max_size_mb)
             mime = get_mime(img)
+        except Exception as e:
+            print_error(f"Failed to prepare image {img.name}: {str(e)}")
+            error_count += 1
+            continue
 
-            # Show compression info if compression occurred
-            original_size = img.stat().st_size
-            compressed_size = len(image_bytes)
-            if original_size != compressed_size:
-                print_info(
-                    f"  Compressed from {original_size / (1024 * 1024):.2f} MB to {compressed_size / (1024 * 1024):.2f} MB"
-                )
+        # Show compression info if compression occurred
+        original_size = img.stat().st_size
+        compressed_size = len(image_bytes)
+        if original_size != compressed_size:
+            orig_mb = original_size / (1024 * 1024)
+            comp_mb = compressed_size / (1024 * 1024)
+            print_info(f"  Compressed from {orig_mb:.2f} MB to {comp_mb:.2f} MB")
 
+        try:
             name = generate_name(image_bytes, mime, model, config)
+        except ContentFilteredError:
+            print_warning(f"  Skipping {img.name} due to AI content filtering")
+            error_count += 1
+            continue
+        except Exception as e:
+            print_error(f"Failed to generate name for {img.name}: {str(e)}")
+            raise
 
+        try:
             # Validate the generated name
             validated_name = validate_filename(name)
 
@@ -141,7 +155,7 @@ def process_path(
                 print_success(f"  Renamed: {img.name} -> {target.name}")
                 processed_count += 1
         except Exception as e:
-            print_error(f"Failed to process {img.name}: {str(e)}")
+            print_error(f"Failed to rename {img.name}: {str(e)}")
             error_count += 1
 
     # Print summary

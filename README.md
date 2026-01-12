@@ -51,6 +51,8 @@ dry_run = false
 debug = false
 openai_api_key = "your-api-key-here"  # Optional: can also be set via OPENAI_API_KEY environment variable
 openai_base_url = "https://api.openai.com/v1"  # Optional: for custom OpenAI-compatible endpoints
+max_retries = 1
+retry_delay = 3.0
 system_prompt = "Custom system prompt for AI"
 user_prompt = "Custom user prompt for AI"
 ```

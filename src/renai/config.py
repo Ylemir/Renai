@@ -25,6 +25,8 @@ class Config:
         self.openai_base_url: str | None = None
         self.system_prompt: str | None = None
         self.user_prompt: str | None = None
+        self.max_retries: int = 1
+        self.retry_delay: float = 3.0
 
     def load_from_dict(self, config_dict: dict[str, Any]) -> None:
         """Load configuration from a dictionary."""
@@ -44,6 +46,10 @@ class Config:
             self.system_prompt = config_dict["system_prompt"]
         if "user_prompt" in config_dict:
             self.user_prompt = config_dict["user_prompt"]
+        if "max_retries" in config_dict:
+            self.max_retries = int(config_dict["max_retries"])
+        if "retry_delay" in config_dict:
+            self.retry_delay = float(config_dict["retry_delay"])
 
     def get_openai_api_key(self) -> str | None:
         """Get OpenAI API key from config or environment variable."""

@@ -2,7 +2,12 @@ import base64
 import logging
 import time
 
-from openai import APIError, AuthenticationError, OpenAI, RateLimitError
+from openai import (
+    APIError,
+    AuthenticationError,
+    OpenAI,
+    RateLimitError,
+)
 
 from renai.config import Config, load_config
 from renai.logger import print_error, print_process, print_success, print_warning
@@ -11,8 +16,14 @@ from renai.prompt import SYSTEM_PROMPT, USER_PROMPT
 log = logging.getLogger(__name__)
 
 
+class ContentFilteredError(Exception):
+    """Exception raised when AI content is filtered due to policy violation."""
+
+    pass
+
+
 def generate_name(
-    image_bytes: bytes, mime: str, model: str, config: Config = None
+    image_bytes: bytes, mime: str, model: str, config: Config | None = None
 ) -> str:
     """
     Generate a name for an image using AI.
@@ -61,8 +72,8 @@ def generate_name(
     )
     user_prompt = config.user_prompt if config.user_prompt is not None else USER_PROMPT
 
-    max_retries = 3
-    retry_delay = 1  # seconds
+    max_retries = config.max_retries
+    retry_delay = config.retry_delay
 
     for attempt in range(max_retries):
         attempt_start_time = time.time()
@@ -115,6 +126,15 @@ def generate_name(
                 raise
         except APIError as e:
             response_time = time.time() - attempt_start_time
+            error_msg = str(e)
+            if (
+                "ResponsibleAIPolicyViolation" in error_msg
+                or "content_filter" in error_msg
+            ):
+                print_warning(f"Content filtered by AI safety policy: {e}")
+                raise ContentFilteredError(
+                    f"AI content filtered due to policy violation: {e}"
+                ) from e
             print_warning(
                 f"API error on attempt {attempt + 1} after {response_time:.2f}s: {e}"
             )
