@@ -4,7 +4,7 @@ from pathlib import Path
 
 from renai.ai_client import ContentFilteredError, generate_name
 from renai.config import load_config
-from renai.image_utils import compress_image, get_mime, image_mimes
+from renai.image_utils import compress_image, get_image_metadata, get_mime, image_mimes
 from renai.logger import (
     print_error,
     print_highlight,
@@ -115,6 +115,17 @@ def process_path(
         print_process(
             f"[{i}/{len(files)}] Processing: {img.name} (Size: {size_mb:.2f} MB)"
         )
+
+        metadata_context = None
+        try:
+            metadata_context = get_image_metadata(img)
+        except Exception as e:
+            if getattr(config, "strict_metadata", False):
+                print_error(f"Failed to read metadata for {img.name}: {str(e)}")
+                error_count += 1
+                continue
+            log.debug(f"Failed to read metadata for {img.name}: {e}")
+
         try:
             image_bytes = compress_image(img, max_size_mb)
             mime = get_mime(img)
@@ -132,7 +143,9 @@ def process_path(
             print_info(f"  Compressed from {orig_mb:.2f} MB to {comp_mb:.2f} MB")
 
         try:
-            name = generate_name(image_bytes, mime, model, config)
+            name = generate_name(
+                image_bytes, mime, model, config, metadata_context=metadata_context
+            )
         except ContentFilteredError:
             print_warning(f"  Skipping {img.name} due to AI content filtering")
             error_count += 1

@@ -2,6 +2,7 @@ from pathlib import Path
 
 import typer
 
+from renai import __version__
 from renai.config import find_config_file, load_config
 from renai.logger import print_info, print_separator, setup_logger
 from renai.renamer import process_path
@@ -12,16 +13,13 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-# def version_callback(value: bool):
-#     if value:
-#         typer.echo(f"renai version {typer.style(__version__, fg=typer.colors.GREEN, bold=True)}")
-#         raise typer.Exit()
 
-# @app.callback()
-# def main(
-#     version: bool = typer.Option(None, "--version", "-v", callback=version_callback, help="Show version and exit.")
-# ):
-#     pass
+def version_callback(value: bool):
+    if value:
+        typer.echo(
+            f"renai version {typer.style(__version__, fg=typer.colors.GREEN, bold=True)}"
+        )
+        raise typer.Exit()
 
 
 @app.command()
@@ -30,10 +28,22 @@ def rename(
         ..., exists=True, help="Image file or directory to process."
     ),
     max_size_mb: float = typer.Option(None, help="Maximum size of the image in MB."),
-    model: str = typer.Option(None, help="Model to use for image renaming."),
+    model: str = typer.Option(
+        None, "-m", "--model", help="Model to use for image renaming."
+    ),
     dry_run: bool = typer.Option(None, help="Run without actually renaming files."),
     debug: bool = typer.Option(None, help="Enable debug logging."),
-    config_path: Path = typer.Option(None, help="Path to configuration file."),
+    version: bool = typer.Option(
+        None,
+        "--version",
+        "-v",
+        callback=version_callback,
+        is_eager=True,
+        help="Show version and exit.",
+    ),
+    config_path: Path = typer.Option(
+        None, "-c", "--config", help="Path to configuration file."
+    ),
 ):
     # Load configuration
     config = load_config(config_path)

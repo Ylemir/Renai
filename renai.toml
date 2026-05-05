@@ -1,11 +1,13 @@
 # renai configuration file
 
-max_size_mb = 10.0
-model = "gpt-4o"
+max_size_mb = 7
+model = "openai/gpt-4.1"
 dry_run = false
 debug = false
 # openai_api_key = "your-api-key-here"  # Optional: can also be set via OPENAI_API_KEY environment variable
 # openai_base_url = "https://api.openai.com/v1"  # Optional: can also be set via OPENAI_BASE_URL environment variable
+max_retries = 1
+retry_delay = 3.0
 
 # AI prompts
 system_prompt = '''

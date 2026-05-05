@@ -21,12 +21,14 @@ class Config:
         self.model: str = "gpt-4o"
         self.dry_run: bool = False
         self.debug: bool = False
+        self.strict_metadata: bool = False
+        self.auto_append_metadata: bool = False
         self.openai_api_key: str | None = None
         self.openai_base_url: str | None = None
         self.system_prompt: str | None = None
         self.user_prompt: str | None = None
-        self.max_retries: int = 1
-        self.retry_delay: float = 3.0
+        self.max_retries: int = 3
+        self.retry_delay: float = 1.0
 
     def load_from_dict(self, config_dict: dict[str, Any]) -> None:
         """Load configuration from a dictionary."""
@@ -38,6 +40,10 @@ class Config:
             self.dry_run = config_dict["dry_run"]
         if "debug" in config_dict:
             self.debug = config_dict["debug"]
+        if "strict_metadata" in config_dict:
+            self.strict_metadata = bool(config_dict["strict_metadata"])
+        if "auto_append_metadata" in config_dict:
+            self.auto_append_metadata = bool(config_dict["auto_append_metadata"])
         if "openai_api_key" in config_dict:
             self.openai_api_key = config_dict["openai_api_key"]
         if "openai_base_url" in config_dict:
